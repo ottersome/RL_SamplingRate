@@ -141,7 +141,43 @@ def simple_sample(sampling_rate,state_tapes,holding_t_tape, max_samples=None):
 
     return np.asarray(states)
     
-def quick_sample(sampling_rate,state_tapes,holding_t_tapes, max_samples):
+def quick_sample(sampling_rate,state_tapes,holding_t_tapes, max_samples=np.inf):
+    sampling_time = 1/sampling_rate
+    if len(state_tapes) != len(holding_t_tapes):
+        print("Sizes of tapes are not equivalent. Please make sure they \
+                correspond to each other.")
+        return
+    
+    transition_times = np.cumsum(holding_t_tapes)
+
+    states = [state_tapes[0]] # Place the initial state at t=0
+    state_tapo = np.asarray(state_tapes)
+    currT = 0
+    currStatIdx = 0
+    
+    while currT < transition_times[-1]:
+        #  print(str(currT) + ' out of ' + str(transition_times[-1]))
+        if currStatIdx >= len(transition_times):
+            break
+        if len(states) >= max_samples:
+            return np.asarray(states[:max_samples])
+        idxIncrement = 1
+        while currT + sampling_time > transition_times[currStatIdx + idxIncrement - 1]:
+            # This is for the case whereby we skipped some of the transition because it is too short
+            if currStatIdx + idxIncrement >= len(transition_times):
+                break
+            idxIncrement += 1
+        
+        NoOfReplica = int(np.floor((transition_times[currStatIdx + idxIncrement - 1] - currT) / sampling_time))
+        states = states + ([state_tapo[currStatIdx + idxIncrement - 1]] * NoOfReplica)
+        currT = currT + (NoOfReplica * sampling_time)
+        currStatIdx = currStatIdx + idxIncrement
+        #  print(currStatIdx)
+
+    return np.asarray(states)
+
+
+def quick_sample_stats(sampling_rate,state_tapes,holding_t_tapes, max_samples=np.inf):
     sampling_time = 1/sampling_rate
     if len(state_tapes) != len(holding_t_tapes):
         print("Sizes of tapes are not equivalent. Please make sure they \
