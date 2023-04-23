@@ -1,6 +1,8 @@
 import numpy as np
 from .abssimulator import StochasticSimulator,SPManager
-import torch
+import importlib
+if importlib.find_loader('torch') != None:
+    import torch
 
 # For now I assume distributions are
 # np.random
@@ -224,7 +226,7 @@ class RaceOfExponentials(SPManager):
             self.s_rate = rates['mu']
         elif isinstance(rates,list) \
             or isinstance(rates, np.ndarray)\
-            or isinstance(rates, torch.Tensor):
+            or (importlib.find_loader('torch') != None and isinstance(rates, torch.Tensor)):
             self.a_rate = rates[0]
             self.s_rate = rates[1]
         else:
