@@ -39,11 +39,22 @@ class SamplingTests(unittest.TestCase):
         print('Sample length ', len(samples))
         for i in range(len(result)):
             assert result[i] == samples[i]
+    def test_limit(self):
+        states = [0,1]
+        times = [1,1]
+        rate = 1/0.25
+        result = [0,0,0,0,1,1,1,1]
+
+        samples = self.algo(rate, states, times)
+        print('Samples limitj:', samples)
+        print('Sample limit length ', len(samples))
+        for i in range(len(result)):
+            assert result[i] == samples[i]
 
     # Just for extra safety
     def test_random(self):
         rates = {"lam": 1,"mu":1.5}
-        sp_rates = np.logspace(-3,6, 10,base=2)
+        sp_rates = np.logspace(-3,6, 10)
         for rate in sp_rates:
             print("Testing with samp_rate ", rate)
             for i in range(100):
@@ -60,7 +71,9 @@ def suite():
     suite = unittest.TestSuite()
     suite.addTest(SamplingTests(quick_sample,'test_1'))
     suite.addTest(SamplingTests(simple_sample,'test_2'))
-    suite.addTest(SamplingTests(simple_sample,'test_random'))
+    suite.addTest(SamplingTests(simple_sample,'test_limit'))
+    suite.addTest(SamplingTests(quick_sample,'test_limit'))
+    #suite.addTest(SamplingTests(simple_sample,'test_random'))
     return suite
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()

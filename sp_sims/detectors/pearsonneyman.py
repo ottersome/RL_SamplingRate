@@ -1,0 +1,20 @@
+import numpy as np
+def take_a_guess(tape, p0,p1):
+    num = 0
+    denum = 0
+    for i in range(len(tape)-1):
+        from_state = tape[i]
+        to_state = tape[i+1]
+        num += np.log(p0[from_state,to_state])
+        denum += np.log(p1[from_state,to_state])
+    return 0 if num > denum else 1
+
+# A Bit better for memory 
+def multiplicity_guess(states, multiplicity,p0,p1):
+    num= 0 
+    denum= 0 
+    for i,s in enumerate(states[1:]):
+        from_state = states[i]
+        num += multiplicity[i]*np.log(p0[from_state,s])
+        denum += multiplicity[i]*np.log(p1[from_state,s])
+    return 0 if num > denum else 1
