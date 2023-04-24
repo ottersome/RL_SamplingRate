@@ -1,5 +1,7 @@
 import numpy as np
+import sys
 from abc import ABC,abstractmethod
+import time 
 
 # TODO: This document ought to give usw ways to going through the history 
 # and being able to summarize certain statistics. Such as waiting times and 
@@ -112,7 +114,7 @@ def emp_steady_state_distribution(state_tape):
 def simple_sample(sampling_rate,state_tapes,holding_t_tape, max_samples=None):
     # We just have to get a certain percentage of the states
     # Create array of unique elements
-    sampling_time = 1/sampling_rate
+    sampling_time = np.float32(1/sampling_rate)
     if len(state_tapes) != len(holding_t_tape):
         print("Sizes of tapes are not equivalent. Please make sure they \
                 correspond to each other.")
@@ -123,14 +125,18 @@ def simple_sample(sampling_rate,state_tapes,holding_t_tape, max_samples=None):
     starting_times = np.copy(transition_times) - holding_t_tape
 
     # Get Sample Tape
-    states = []
+    states = [state_tapes[0]]
     state_tapo = np.asarray(state_tapes)
     no_samples = 1
-    for i,time in enumerate(np.arange(0,transition_times[-1],sampling_time)):
+
+    # For Each Sampling Time
+    # TODO: THis is waayyy tooo hacky for my taste
+    eps = np.finfo(np.float64).eps*2
+    for i,time in enumerate(np.arange(sampling_time,transition_times[-1]+eps,sampling_time)):
         # Get Index of State
-        state_index  = (time >= starting_times) & (time < transition_times)
+        state_index  = (time > starting_times) & (time <= transition_times)
         state_fallen_into = state_tapo[state_index]
-        assert len(state_fallen_into) == 1
+        assert len(state_fallen_into) == 1, 'Actual lenth was {} witht time {}'.format(state_index,time)
         #  assert (len(state_fallen_into) != 1)
         states.append(state_fallen_into[0])
         if max_samples != None:
@@ -182,7 +188,6 @@ def quick_sample(sampling_rate,state_tapes,holding_t_tapes, max_samples=np.inf):
 # Using Multiplicity instead of using too much memory
 # TODO confirm it works well
 def quick_sample_lessmem(sampling_rate,state_tapes,holding_t_tapes, max_samples=np.inf):
-
     sampling_time = 1/sampling_rate
     if len(state_tapes) != len(holding_t_tapes):
         print("Sizes of tapes are not equivalent. Please make sure they \
@@ -196,7 +201,7 @@ def quick_sample_lessmem(sampling_rate,state_tapes,holding_t_tapes, max_samples=
     currT = 0
     currStatIdx = 0
     tot_samples = 1
-    replicas  = []
+    replicas  = [1]
     
     # While we dont reach the end
     while currT < transition_times[-1]:
@@ -206,10 +211,14 @@ def quick_sample_lessmem(sampling_rate,state_tapes,holding_t_tapes, max_samples=
         if tot_samples >= max_samples:
             # Remove the extra amount of samples that we have 
             excess = tot_samples - max_samples
+            if replicas[-1] == 1 and excess > 0:
+                replicas = replicas[:-1]
+            else:
+                replicas[-1] -= excess
+            return np.asarray(states[:max_samples]), replicas
 
-            return np.asarray(states[:max_samples])
+        # Initialize for below
         idxIncrement = 1
-
         # For the first slow sampling rates
         while currT + sampling_time > transition_times[currStatIdx + idxIncrement - 1]:
             # This is for the case whereby we skipped some of the transition because it is too short
@@ -219,11 +228,18 @@ def quick_sample_lessmem(sampling_rate,state_tapes,holding_t_tapes, max_samples=
         
         NoOfReplica = int(np.floor((transition_times[currStatIdx + idxIncrement - 1] - currT) / sampling_time))
         tot_samples += NoOfReplica
-        replicas.append((NoOfReplica if len(replicas) > 0  else NoOfReplica+1 ))
-        states.append(state_tapo[currStatIdx + idxIncrement - 1])
+
+        new_state = state_tapo[currStatIdx + idxIncrement - 1]
+        if states[-1] == new_state:
+            replicas[-1] += NoOfReplica
+        else:# If we meet a new state we create a new part of the list
+            replicas.append((NoOfReplica if len(replicas) > 0  else NoOfReplica+1))
+            states.append(new_state)
+
         currT = currT + (NoOfReplica * sampling_time)
         currStatIdx = currStatIdx + idxIncrement
-        #  print(currStatIdx)
+
+    print('Replicas :',replicas)
 
     return np.asarray(states), replicas
 

@@ -62,6 +62,12 @@ def save_array_of_pictures(axs,thresholds,x_axis,varying_y_axis,path,name):
         axs.scatter(x_axis[:i], varying_y_axis[:i], point_sizes[:i],color='b')
         plt.savefig((fin_image_name+f'{i:05d}').format(i), dpi=100)
 
+def get_states_given_spr(tape,hold_times,sprate,budget):
+    lst = []
+    for i in np.arange(0,(1/sprate)*(budget+1),(1/sprate)):
+        lst.append(tape[np.where(hold_times > i*(1/sprate))[0][0]])
+    return lst
+
 
 def argparser():
     parser  = argparse.ArgumentParser()

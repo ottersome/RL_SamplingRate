@@ -14,7 +14,8 @@ def multiplicity_guess(states, multiplicity,p0,p1):
     num= 0 
     denum= 0 
     for i,s in enumerate(states[1:]):
+        # Take Multiplicity as same-state transition
         from_state = states[i]
-        num += multiplicity[i]*np.log(p0[from_state,s])
-        denum += multiplicity[i]*np.log(p1[from_state,s])
+        num += (multiplicity[i]-1)*np.log(p0[from_state,from_state]) + np.log(p0[from_state,s])
+        denum += (multiplicity[i]-1)*np.log(p1[from_state,from_state]) + np.log(p1[from_state,s])
     return 0 if num > denum else 1
