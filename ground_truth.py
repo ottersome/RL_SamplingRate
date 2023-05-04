@@ -417,7 +417,7 @@ importlib.reload(sp_sims.detectors.pearsonneyman)
 class Args:
   xres = 100
   length = 1000# Number of transitions in continuous chain 
-  state_limit = 1#Inclusive
+  state_limit = 2#Inclusive
   init_state = 0
   num_samples =5
   detection_guesses =1000
@@ -461,10 +461,17 @@ samp_rates = np.logspace(-3,5,args.xres, base=2)
 rates0 = {"lam": 4/10,"mu":12/10}
 rates1 = {"lam": 100/10,"mu":122/10}
 
-rates = [rates0,rates1]
+Q0 = generate_true_gmatrix(rates0, args.state_limit)
+Q1 = generate_true_gmatrix(rates1, args.state_limit)
 
-tgm0 = np.array([[-rates0['lam'],rates0['lam']],[rates0['mu'],-rates0['mu']]])
-tgm1 = np.array([[-rates1['lam'],rates1['lam']],[rates1['mu'],-rates1['mu']]])
+
+rates = [rates0,rates1]
+#matrices = [Q0,Q1]
+
+# For Two States
+#tgm0 = np.array([[-rates0['lam'],rates0['lam']],[rates0['mu'],-rates0['mu']]])
+#tgm1 = np.array([[-rates1['lam'],rates1['lam']],[rates1['mu'],-rates1['mu']]])
+
 
 hts, sts = ([],[])
 last_times  = []
@@ -472,6 +479,7 @@ true_values = np.random.choice(2,args.detection_guesses)
 # Generate The Tapes
 for i in range(args.detection_guesses):
     roe = RaceOfExponentials(args.length,rates[true_values[i]],state_limit=args.state_limit)
+    #roe = GeneralEmbeddedMarkC(args.length,matrices[true_values[i]])
     holdTimes_tape, state_tape = roe.generate_history(args.init_state)
     hts.append(holdTimes_tape)
     sts.append(state_tape)
@@ -483,8 +491,8 @@ true_p1s = []
 fixed_guesses = np.ones((len(samp_rates), args.detection_guesses))
 # Crete all the *known* probability functions.
 for srIdx, cur_samp_rate in enumerate(samp_rates):
-    true_p0s.append(expm(tgm0*(1/cur_samp_rate)))
-    true_p1s.append(expm(tgm1*(1/cur_samp_rate)))
+    true_p0s.append(expm(Q0*(1/cur_samp_rate)))
+    true_p1s.append(expm(Q1*(1/cur_samp_rate)))
 
 # Generate
 # TODO decrease memory consumption by only using iterators
@@ -511,6 +519,7 @@ base_samp_rate = samp_rates[-1]
 
 for i in range(args.detection_guesses):
     roe = RaceOfExponentials(args.length,rates[true_values[i]],state_limit=args.state_limit)
+    #roe = GeneralEmbeddedMarkC(args.length,matrices[true_values[i]])
     holdTimes_tape, state_tape = roe.generate_history(args.init_state)
     hts.append(holdTimes_tape); sts.append(state_tape)
     last_times.append(np.cumsum(holdTimes_tape)[-1])
@@ -534,8 +543,8 @@ for i in tqdm(np.arange(args.detection_guesses)):
         decimateInterval = int(base_samp_rate/cur_samp_rate)
         #tmpSampTape = sampled_tape[0::decimateInterval]
         # If you use decimation you get a less accurate 
-        #tmpSampTapel = quick_sample(cur_samp_rate, sts[i],hts[i])
-        #limited_sampled_tape = tmpSampTapel[0:args.num_samples]
+        tmpSampTapel = quick_sample(cur_samp_rate, sts[i],hts[i])
+        limited_sampled_tape = tmpSampTapel[0:args.num_samples]
         
         tmpSampTape, replicas = quick_sample_budget(cur_samp_rate, sts[i],hts[i], budget= args.num_samples)
         # Limit the Sample
@@ -545,13 +554,13 @@ for i in tqdm(np.arange(args.detection_guesses)):
         #min_length = np.min([len(tmpS), min_length])# Debugging Stat
 
         # 
-        #meep = take_a_guess(limited_sampled_tape,true_p0, true_p1)
+        meep = take_a_guess(limited_sampled_tape,true_p0, true_p1)
         moop = multiplicity_guess(tmpSampTape,replicas, true_p0, true_p1)
-        guesses[srIdx, i] = moop
+        guesses[srIdx, i] = meep
 
-        #if meep != moop:
-            #print('Ooops')
-            #exit(-1)
+        if meep != moop:
+            print('Ooops')
+            exit(-1)
         #assert meep == moop
 
 num_negs = np.sum(true_values == 0)#TN + FP

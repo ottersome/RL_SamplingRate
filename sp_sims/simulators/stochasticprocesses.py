@@ -63,7 +63,7 @@ class GeneralEmbeddedMarkC(SPManager):
     # Can we have an api for distributions?
     # we will assume for now all variables are identically distributed.
     def __init__(self, length,q_matrix):
-        print("We are setting up our embedded markov chian")
+        #print("We are setting up our embedded markov chian")
         self.length = length
         assert q_matrix.shape[0] == q_matrix.shape[1]
 
@@ -91,7 +91,7 @@ class GeneralEmbeddedMarkC(SPManager):
         states = [0]
         holding_times = [np.random.exponential(scale=1/self.holding_rates[0])]
 
-        print("Generating Path of lenth ", self.length)
+        #print("Generating Path of lenth ", self.length)
         for i in range(self.length):
             states.append(np.random.choice(list_of_states, p=self.prob_matrix[states[-1],:]))
             holding_times.append(np.random.exponential(scale=1/self.holding_rates[states[-1]]))
