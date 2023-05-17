@@ -145,9 +145,9 @@ import time
 # In[2]:
 
 
-import importlib
-importlib.reload(sp_sims.simulators.stochasticprocesses)
-importlib.reload(sp_sims.statistics.statistics)
+    import importlib
+    importlib.reload(sp_sims.simulators.stochasticprocesses)
+    importlib.reload(sp_sims.statistics.statistics)
 
 
 # In[3]:
@@ -546,7 +546,7 @@ for i in tqdm(np.arange(args.detection_guesses)):
         tmpSampTapel = quick_sample(cur_samp_rate, sts[i],hts[i])
         limited_sampled_tape = tmpSampTapel[0:args.num_samples]
         
-        tmpSampTape, replicas = quick_sample_budget(cur_samp_rate, sts[i],hts[i], budget= args.num_samples)
+        ##tmpSampTape, replicas = quick_sample_budget(cur_samp_rate, sts[i],hts[i], budget= args.num_samples)
         # Limit the Sample
         ############################################
         # Option 2 with limited number of samples ##
@@ -555,12 +555,12 @@ for i in tqdm(np.arange(args.detection_guesses)):
 
         # 
         meep = take_a_guess(limited_sampled_tape,true_p0, true_p1)
-        moop = multiplicity_guess(tmpSampTape,replicas, true_p0, true_p1)
+        #moop = multiplicity_guess(tmpSampTape,replicas, true_p0, true_p1)
         guesses[srIdx, i] = meep
 
-        if meep != moop:
-            print('Ooops')
-            exit(-1)
+        #if meep != moop:
+            #print('Ooops')
+            #exit(-1)
         #assert meep == moop
 
 num_negs = np.sum(true_values == 0)#TN + FP

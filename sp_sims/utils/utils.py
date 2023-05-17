@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-import os,sys
+import random
+import torch
+import os
 from tqdm import tqdm
 from  ..statistics.statistics import trans_matrix
 
@@ -39,6 +41,13 @@ def show_trans_matrx(holdTimes_tape,state_tape):
     ax.set_title("Preliminary Transition transrix")
     plt.show()
     plt.close()
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if(torch.cuda.device_count() > 0):
+        torch.cuda.manual_seed_all(seed)
+
 
 def save_array_of_pictures(axs,thresholds,x_axis,varying_y_axis,path,name):
     # New

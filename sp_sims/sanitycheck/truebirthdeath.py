@@ -15,7 +15,25 @@ def generate_true_gmatrix(rates, shape):
     tridiag = diags(k, offset).toarray()
     tridiag[0,0] = - rates['lam']
     tridiag[-1,-1] = -rates['mu']
+
     return tridiag
+
+
+def random_bd_gmatrix(shape):
+    shape += 1
+    gen_mat = np.eye(shape)
+    for i in range(shape):
+        lam = np.random.chisquare(1,1)
+        mu = lam + np.random.chisquare(1,1)
+        tot = 0
+        if i > 0 : 
+            gen_mat[i,i-1] =  lam
+            tot += lam
+        if i < shape-1 : 
+            gen_mat[i,i+1] =  mu
+            tot+=mu
+        gen_mat[i,i] = - tot
+    return gen_mat
     
 def one_step_matrx(Q):
     stat_dist = []
