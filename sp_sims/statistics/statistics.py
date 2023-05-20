@@ -188,10 +188,12 @@ def quick_sample(sampling_rate,state_tapes,holding_t_tapes, max_samples=np.inf):
 # Using Multiplicity instead of using too much memory
 # TODO confirm it works well
 def quick_sample_budget(sampling_rate,state_tapes,holding_t_tapes, budget):
+
     sampling_time = 1/sampling_rate
     if len(state_tapes) != len(holding_t_tapes):
-        print("Sizes of tapes are not equivalent. Please make sure they \
-                correspond to each other.")
+        print("Sizes of tapes are not equivalent. They are state {} and holdtimes {}".format(
+            len(state_tapes), len(holding_t_tapes)  
+        ))
         return
     
     transition_times = np.cumsum(holding_t_tapes)
@@ -203,14 +205,18 @@ def quick_sample_budget(sampling_rate,state_tapes,holding_t_tapes, budget):
     tot_samples = 1
     replicas  = [1]
     
-    # Loop till we get our budget met our till we hit the end of the tape
+    # Loop till we get our budget met or till we hit the end of the tape
     while tot_samples < budget and currStatIdx < len(transition_times):
         #  print(str(currT) + ' out of ' + str(transition_times[-1]))
-
         # For the first slow sampling rates
-        while currT + sampling_time > transition_times[currStatIdx] and \
-            currStatIdx < len(transition_times):# and while there is places to jump to 
-            currStatIdx += 1
+        try:
+            while currT + sampling_time > transition_times[currStatIdx] and \
+                currStatIdx < len(transition_times):# and while there is places to jump to 
+                currStatIdx += 1
+        except IndexError:
+            print('This failed with currT {},sampling time {}, and transition_times\n {}'.format(
+                currT, sampling_time, transition_times
+            ))
 
         NoOfReplica = int(np.floor((transition_times[currStatIdx] - currT) / sampling_time))
 
@@ -229,9 +235,50 @@ def quick_sample_budget(sampling_rate,state_tapes,holding_t_tapes, budget):
 
         # Put it at the last replica of this state
         currT = currT + (NoOfReplica * sampling_time)
-
-
     return np.asarray(states), replicas
+#def quick_sample_budget(sampling_rate,state_tapes,holding_t_tapes, budget):
+#
+#    sampling_time = 1/sampling_rate
+#    if len(state_tapes) != len(holding_t_tapes):
+#        print("Sizes of tapes are not equivalent. Please make sure they \
+#                correspond to each other.")
+#        return
+#    
+#    transition_times = np.cumsum(holding_t_tapes)
+#
+#    states = [state_tapes[0]] # Place the initial state at t=0
+#    state_tapo = np.asarray(state_tapes)
+#    currT = 0
+#    currStatIdx = 0
+#    tot_samples = 1
+#    replicas  = [1]
+#    
+#    # Loop till we get our budget met our till we hit the end of the tape
+#    while tot_samples < budget and currStatIdx < len(transition_times):
+#        #  print(str(currT) + ' out of ' + str(transition_times[-1]))
+#        # For the first slow sampling rates
+#        while currT + sampling_time > transition_times[currStatIdx] and \
+#            currStatIdx < len(transition_times):# and while there is places to jump to 
+#            currStatIdx += 1
+#
+#        NoOfReplica = int(np.floor((transition_times[currStatIdx] - currT) / sampling_time))
+#
+#        # If we go over budget np, we fix 
+#        if tot_samples + NoOfReplica > budget:
+#            NoOfReplica =  budget - tot_samples  # Adjust the number of Replicas
+#
+#        tot_samples += NoOfReplica
+#        new_state = state_tapo[currStatIdx]
+#
+#        if states[-1] == new_state:
+#            replicas[-1] += NoOfReplica
+#        else:# If we meet a new state we create a new part of the list
+#            replicas.append(NoOfReplica)
+#            states.append(new_state)
+#
+#        # Put it at the last replica of this state
+#        currT = currT + (NoOfReplica * sampling_time)
+    #return np.asarray(states), replicas
 
 
 def quick_sample_stats(sampling_rate,state_tapes,holding_t_tapes, max_samples=np.inf):

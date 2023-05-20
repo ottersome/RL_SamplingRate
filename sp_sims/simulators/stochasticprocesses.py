@@ -1,6 +1,7 @@
 import numpy as np
 from .abssimulator import StochasticSimulator,SPManager
 import importlib
+from math import ceil
 if importlib.find_loader('torch') != None:
     import torch
 
@@ -215,9 +216,90 @@ class PoissonFight(SPManager):
     def simulate_n_processes(self):
         pass
 
+def get_states(holding_times,bd, race,states, max_state):
+    for i in range(len(holding_times)):
+        cur_state = states[-1]
+        change = bd[i]
+        if cur_state == 0 and change == -1:# We only take birth 
+            #holding_times[i] = race[i,1]
+            holding_times[i] = race[1,i]
+            change = 1
+        if cur_state == max_state and change==1:
+            #holding_times[i] = race[i,0]
+            holding_times[i] = race[0,i]
+            change = -1
+        states.append(cur_state + change)
+    return states# Return the next step separately for semantics
+
+def get_race(s_rate, a_rate, length):
+    race = np.zeros(shape=[2,length])
+    race[0,:] = np.random.exponential(scale=(1/s_rate),size=length)
+    race[1,:] = np.random.exponential(scale=(1/a_rate),size=length)
+    return race
+
+class RaceOfExponentials(SPManager):
+    # Last helps us keep a continuous chain that can be sampled
+    # to our needs
+    def __init__(self, sampling_window,rates,max_state):
+        
+        self.sampling_window = sampling_window
+        if isinstance(rates, dict):
+            self.a_rate = rates['lam']
+            self.s_rate = rates['mu']
+        elif isinstance(rates,list) \
+            or isinstance(rates, np.ndarray)\
+            or (importlib.find_loader('torch') != None and isinstance(rates, torch.Tensor)):
+            self.a_rate = rates[0]
+            self.s_rate = rates[1]
+        else:
+            print("RaceofExponentials Received :" , type(rates))
+            raise TypeError('Incorrect Rate Format passed to RaceOfExponentials')
+        self.max_state = max_state
+
+    # When Uncertain, we chose our next best educated guess
+    def generate_history(self,initial_state):
+
+        # Pick an Estimate of when you think it might end + some 10 transitions
+        possible_amount_of_steps = ceil(self.sampling_window/(1/(self.s_rate + self.a_rate )))
+        # Account for a bit of variance
+        one_standard_deviation = ceil((1/(self.s_rate + self.a_rate))*possible_amount_of_steps)
+        possible_amount_of_steps += one_standard_deviation# Plus one Standard Deviation
+
+        latest = 0
+        it = 0
+        states = [initial_state]
+        holding_times = []
+        race = None# For final use
+        while latest < self.sampling_window:
+            # Add Another Standard Variation of Steps 
+            l = possible_amount_of_steps if it == 0 else one_standard_deviation
+            race = get_race(self.s_rate, self.a_rate, l)
+            ht = np.min(race,axis=0)
+            bd = np.argmin(race,axis=0)
+            bd[bd==0] = -1# Change 0s to 1s 
+            
+            get_states(ht,bd, race, states,self.max_state)
+            it += 1# Simple to keep track of initial length ot be used above
+            holding_times = holding_times + list(ht)# Throw Away last holding time.
+        
+            latest += np.cumsum(ht)[-1]
+        
+        # Remove the last state without corresponding holding time. 
+        #states = states[:-1]
+        #states.pop()
+
+        last_ht = np.random.exponential(scale=(1/self.a_rate)) if states[-1] == 0 else np.random.exponential(scale=(1/self.s_rate))
+        holding_times.append(last_ht)
+
+        # Make sure we don't have wrong holding times at the end
+        #if states[-1] == 0: holding_times[-1] = race[1,-1]
+        #if states[-1] == 1: holding_times[-1] = race[0,-1]
+
+        return np.array(holding_times),states
+
 
 # This method of simulating Markov Chains take 
-class RaceOfExponentials(SPManager):
+class OldRaceOfExponentials(SPManager):
 
     def __init__(self, length,rates, state_limit=-1):
         self.length = length
@@ -233,7 +315,6 @@ class RaceOfExponentials(SPManager):
             print("RaceofExponentials Received :" , type(rates))
             raise TypeError('Incorrect Rate Format passed to RaceOfExponentials')
         self.state_limit = state_limit
-    def __init__(self, length)
 
     def generate_history(self,initial_state):
         # Create two clocks racing for length
@@ -263,7 +344,9 @@ class RaceOfExponentials(SPManager):
             states.append(cur_state + change)
 
         # Make sure last state is representative
+        # AYO THIS SHOULD BE WRONG
         if states[-1] == 0: holding_times = race[-1,1]
+        if states[-1] == 0: holding_times[-1] = race[-1,1]
 
         return holding_times,states
 
