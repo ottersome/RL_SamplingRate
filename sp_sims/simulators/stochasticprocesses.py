@@ -232,8 +232,8 @@ class RaceOfExponentials(SPManager):
         else:
             print("RaceofExponentials Received :" , type(rates))
             raise TypeError('Incorrect Rate Format passed to RaceOfExponentials')
-
         self.state_limit = state_limit
+    def __init__(self, length)
 
     def generate_history(self,initial_state):
         # Create two clocks racing for length
