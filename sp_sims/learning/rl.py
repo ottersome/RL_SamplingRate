@@ -17,13 +17,13 @@ class RNNContinuousPolicy(nn.Module):
         #self.fc2 = nn.Linear(hidden_size, 1)
         self.samp_rate_max = samp_rate_max
         self.model = nn.Sequential(
-            nn.Linear(num_params, 24),
+            nn.Linear(num_params, 64),
             nn.ReLU(),
-            nn.Linear(24, 12),
+            nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(12, 6),
+            nn.Linear(32, 16),
             nn.ReLU(),
-            nn.Linear(6, 1)
+            nn.Linear(16, 1)
         )
 
     def forward(self, X):
@@ -43,22 +43,20 @@ class Critic(nn.Module):
         #self.fc1 = nn.Linear(num_param + action_size, hidden_size)
         #self.fc2 = nn.Linear(hidden_size, 1)
         self.model = nn.Sequential(
-            nn.Linear(num_param+action_size, 24),
+            nn.Linear(num_param+action_size, 32),
             nn.ReLU(),
-            nn.Linear(24, 12),
+            nn.Linear(32, 16),
             nn.ReLU(),
-            nn.Linear(12, 6),
+            nn.Linear(16, 8),
             nn.ReLU(),
-            nn.Linear(6, 1)
+            nn.Linear(8, 1)
         )
 
     def forward(self, states, action):# States are the paremeters
         #_,(h,_)  = self.rnn(mstates)
         x = torch.cat((states, action), dim=1)
-        return torch.sigmoid(self.model(x))
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return torch.sigmoid(x)*10
+        return torch.sigmoid(self.model(x)) 
+        
 # Replay buffer
 
 class ReplayBuffer:
@@ -95,18 +93,18 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.memory)
 
-    def populate_replay_buffer(self,num_of_examples, guesses_per_rate = 1000):
+    def populate_replay_buffer(self,num_of_examples, samp_method = 'uniform', guesses_per_rate = 1000):
         ## Start By Generating States
         # TODO: Maybe Try Uniform
         # Make Sure lam > mu
         #rates0[torch.chat(idcs, torch.ones((num_of_examples,1)))] = rates0[idcs:0] + 1
 
         # Generate some random sampling rates
-        rates= gen_rates_bd('uniform', num_of_examples)
+        rates= gen_rates_bd(samp_method, num_of_examples)
         rates0,rates1 = rates
 
         # Get Errors  # ACTIONS
-        smp_rates = np.random.uniform(0,2**4, num_of_examples) # Actions
+        smp_rates = np.random.uniform(0,2**8, num_of_examples) # Actions
         errors = [0]*len(smp_rates)# Amount of errors per action
 
         # TODO: PArallelize this through threads 
@@ -165,6 +163,9 @@ class ReplayBuffer:
             self.add(list(states[i,:]), actions[i], errors[i])
 
 
+# Honestly there is no need for this 0-1 generation here, 
+# We could just have a single dataset and sample from that. But
+# For the sake of keeping development fast
 def gen_rates_bd(method, num_of_examples):
     rates0,rates1 = np.zeros((num_of_examples,2)), np.zeros((num_of_examples,2))
     if method == 'gaussian':
@@ -178,17 +179,44 @@ def gen_rates_bd(method, num_of_examples):
         idcs = rates1[:,0] > rates1[:,1] 
         rates1[idcs, 1] = rates1[idcs,0] + 1
 
-    elif method == 'uniform':
-        rates0[:,0] = np.random.uniform(0, 32,num_of_examples)
-        rates0[:,1] = np.random.uniform(0,32,num_of_examples)
-        rates0[:, 1] += rates0[:,0] # This should provide ample enough space to cover 64 sampling rates 
+    elif method == 'cheaty':
 
+
+        set_dist = 0.001
+        # Generate Lamda First
+
+        # This one has to be condition to be larger than lambda ofc
+        options = np.linspace(0,32-set_dist,num_of_examples)
+        els = np.array([32-i for i in options])
+        probs = els/np.sum(els)
+        for i in range(num_of_examples):
+            rates0[i,0] = np.random.choice(options, p=probs)
+            rates1[i,0] = np.random.choice(options, p=probs)
+
+            rates0[i,1] = np.random.uniform(rates0[i,0]+set_dist,32)
+            rates1[i,1] = np.random.uniform(rates1[i,0]+set_dist,32)
+
+    elif method == 'uniform':
+
+        # Generate Lamda First
+        rates0[:,0] = np.random.uniform(0, 32,num_of_examples)
         rates1[:,0] = np.random.uniform(0,32, num_of_examples)
-        rates1[:,1] = np.random.uniform(0,32, num_of_examples)
-        rates1[:, 1] += rates1[:,0] # This should provide ample enough space to cover 64 sampling rates 
+
+        # This one has to be conditoin to be larger than lambda ofc
+        for i in range(num_of_examples):
+            rates0[i,1] = np.random.uniform(rates0[i,0]+0.01, 32)
+            rates1[i,1] = np.random.uniform(rates1[i,0]+0.01, 32)
+
+        #rates0[:,0] = np.random.uniform(0, 32,num_of_examples)
+        #rates0[:,1] = np.random.uniform(0,32,num_of_examples)
+        #rates0[:, 1] += rates0[:,0] # This should provide ample enough space to cover 64 sampling rates 
+
+        #rates1[:,0] = np.random.uniform(0,32, num_of_examples)
+        #rates1[:,1] = np.random.uniform(0,32, num_of_examples)
+        #rates1[:, 1] += rates1[:,0] # This should provide ample enough space to cover 64 sampling rates 
     else:
         raise Exception('Invalid Sampling Method for Rates')
 
-    rates0 = rates0.clip(0.1,None)
-    rates1 = rates1.clip(0.1,None)
+    rates0 = rates0.clip(0.01,None)
+    rates1 = rates1.clip(0.01,None)
     return [rates0,rates1]

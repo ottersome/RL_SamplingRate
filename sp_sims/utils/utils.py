@@ -6,6 +6,7 @@ import torch
 import os
 from tqdm import tqdm
 from  ..statistics.statistics import trans_matrix
+from itertools import product,islice
 
 # Extremely ad-hoc 
 def show_sanity_matrxs(matrices, titles):
@@ -29,6 +30,26 @@ def show_sanity_matrxs(matrices, titles):
 
     plt.show()
     plt.close()
+
+def prob_of_path(path,  p0,p1):
+    # Take two possible hypothesis
+    num = 1
+    denum = 1
+    for i in range(len(path)-1):
+        from_state = path[i]
+        to_state = path[i+1]
+        num  *= p0[from_state,to_state]
+        denum *= p1[from_state,to_state]
+    # Return the least preferred one
+    return num if denum > num else denum
+def batched(iterable, n):
+    "Batch data into tuples of length n. The last batch may be shorter."
+    # batched('ABCDEFG', 3) --> ABC DEF G
+    if n < 1:
+        raise ValueError('n must be at least one')
+    it = iter(iterable)
+    while (batch := tuple(islice(it, n))):
+        yield batch
 
 def show_trans_matrx(holdTimes_tape,state_tape):
     # Show Transition Matrices

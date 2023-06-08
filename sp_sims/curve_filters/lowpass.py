@@ -1,3 +1,6 @@
+import numpy as np
+from math import factorial
+
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
 
     try:
