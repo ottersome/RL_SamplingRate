@@ -37,6 +37,13 @@ def power_series_exp(Q,power=512):
         final_mat += cur_mat
     return final_mat
 
+def frequency_matrix(tape, num_states):
+    # Form the matrix
+    matrix = np.zeros((num_states,num_states))
+    for i in range(len(tape)-1):
+        matrix[tape[i],tape[i+1]] += 1
+    return matrix
+
 def power_series_log(mat,power):
    assert mat.shape[0] == mat.shape[1]
 
